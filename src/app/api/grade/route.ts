@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ attemptId: attempt.id, ...grade, reference: question.referenceAnswer });
   } catch (err) {
     console.error("grading failed", err);
-    const message = err instanceof Error && err.message.startsWith("Ollama") ? err.message : "Не удалось оценить ответ, попробуйте ещё раз";
+    const message = err instanceof Error && /^(Ollama|Groq|LLM API)/.test(err.message) ? err.message : "Не удалось оценить ответ, попробуйте ещё раз";
     return NextResponse.json({ error: message }, { status: 502 });
   }
 }
