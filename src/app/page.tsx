@@ -1,103 +1,77 @@
-import Image from "next/image";
+import Link from "next/link";
+import { getCurrentUser } from "@/lib/auth";
 
-export default function Home() {
+const steps = [
+  { title: "Загрузите вопросы", text: "Добавьте вопросы и эталонные ответы по одному или списком из файла." },
+  { title: "Отвечайте как на собеседовании", text: "Печатайте ответ или надиктуйте его голосом, без подглядывания в эталон." },
+  { title: "Получите оценку", text: "Ответ сравнивается с эталоном: балл из 10, что было хорошо, что упущено и где ошибки." },
+];
+
+const features = [
+  ["Голосовой ввод", "Тренируйтесь говорить вслух, как на настоящем интервью. Речь распознаётся прямо в браузере."],
+  ["Оценка по смыслу", "ИИ-интервьюер сравнивает ответ с эталоном по сути, а не по совпадению слов, и задаёт уточняющий вопрос."],
+  ["Свои вопросы", "Каждый пользователь работает со своей базой вопросов: по темам, компаниям или конкретной вакансии."],
+  ["История попыток", "Видно, как меняется оценка по каждому вопросу, и что стоит повторить ещё раз."],
+];
+
+export default async function Home() {
+  const user = await getCurrentUser();
+  const cta = user ? { href: "/practice", label: "Начать тренировку" } : { href: "/register", label: "Начать бесплатно" };
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div>
+      <section className="mx-auto max-w-5xl px-4 py-20 text-center">
+        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
+          Репетиция собеседования, <span className="text-indigo-600">которая ставит оценку</span>
+        </h1>
+        <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-600">
+          Загрузите свои вопросы с эталонными ответами, отвечайте текстом или голосом и получайте разбор,
+          как от настоящего интервьюера. Быстрая подготовка и повторение материала перед собеседованием.
+        </p>
+        <div className="mt-8 flex justify-center gap-3">
+          <Link href={cta.href} className="rounded-lg bg-indigo-600 px-5 py-3 font-medium text-white hover:bg-indigo-700">{cta.label}</Link>
+          {!user && <Link href="/login" className="rounded-lg border border-slate-300 bg-white px-5 py-3 font-medium hover:bg-slate-50">Уже есть аккаунт</Link>}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </section>
+
+      <section className="bg-white py-16">
+        <div className="mx-auto max-w-5xl px-4">
+          <h2 className="text-center text-2xl font-semibold">Как это работает</h2>
+          <ol className="mt-10 grid gap-6 sm:grid-cols-3">
+            {steps.map((s, i) => (
+              <li key={s.title} className="rounded-xl border border-slate-200 p-6">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 font-semibold text-indigo-700">{i + 1}</div>
+                <h3 className="mt-4 font-semibold">{s.title}</h3>
+                <p className="mt-2 text-sm text-slate-600">{s.text}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-5xl px-4 py-16">
+        <h2 className="text-center text-2xl font-semibold">Что внутри</h2>
+        <div className="mt-10 grid gap-6 sm:grid-cols-2">
+          {features.map(([title, text]) => (
+            <div key={title} className="rounded-xl border border-slate-200 bg-white p-6">
+              <h3 className="font-semibold">{title}</h3>
+              <p className="mt-2 text-sm text-slate-600">{text}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-5xl px-4 pb-20">
+        <div className="rounded-2xl bg-indigo-600 px-6 py-12 text-center text-white">
+          <h2 className="text-2xl font-semibold">Пример оценки</h2>
+          <div className="mx-auto mt-6 max-w-xl rounded-xl bg-white p-5 text-left text-slate-800">
+            <p className="text-sm text-slate-500">Вопрос: Чем процесс отличается от потока?</p>
+            <p className="mt-3 text-2xl font-bold">7 / 10 <span className="text-base font-medium text-indigo-600">· Хорошо</span></p>
+            <p className="mt-2 text-sm">Суть изложена верно, но не прозвучало, что потоки разделяют общую память процесса.</p>
+            <p className="mt-2 text-sm text-slate-500">Уточняющий вопрос: какие проблемы возникают из-за общей памяти?</p>
+          </div>
+          <Link href={cta.href} className="mt-8 inline-block rounded-lg bg-white px-5 py-3 font-medium text-indigo-700 hover:bg-indigo-50">{cta.label}</Link>
+        </div>
+      </section>
     </div>
   );
 }

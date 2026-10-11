@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Собес.Тренер
 
-## Getting Started
+Сайт для подготовки к собеседованиям: загружаете вопросы с эталонными ответами, отвечаете текстом или голосом и получаете оценку как от интервьюера.
 
-First, run the development server:
+## Что есть
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Лендинг с описанием сервиса (`/`).
+- Регистрация и вход по email и паролю, у каждого пользователя свои вопросы и попытки.
+- Вопросы: добавление по одному, загрузка списком (текст или .txt/.md файл), редактирование, удаление.
+- Тренировка (`/practice`): сначала неотвеченные вопросы, потом те, где оценка ниже и попытка давнее.
+- Ответ текстом или голосом (Web Speech API, русский язык, работает в Chrome, Edge, Safari).
+- Оценка ответа против эталона: балл из 10, вердикт, что хорошо, чего не хватило, ошибки и уточняющий вопрос интервьюера. История попыток по каждому вопросу.
+
+Оценку делает Claude API, если задан `ANTHROPIC_API_KEY`. Без ключа работает упрощённая оценка по совпадению ключевых понятий, чтобы всё можно было попробовать сразу.
+
+## Формат загрузки списком
+
+```
+Чем let отличается от var?
+let имеет блочную область видимости, var функциональную.
+---
+Что такое замыкание?
+Функция вместе с лексическим окружением, в котором она была создана.
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Первая строка блока это вопрос, остальное эталонный ответ, блоки разделяются строкой `---`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Запуск
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Нужен Node.js 20+.
 
-## Learn More
+```bash
+npm install
+cp .env.example .env        # затем впишите AUTH_SECRET (и ANTHROPIC_API_KEY, если есть)
+npx prisma migrate deploy   # создаёт SQLite базу prisma/dev.db
+npm run dev                 # http://localhost:3000
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Стек
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Next.js 15 (App Router, TypeScript), Tailwind CSS, Prisma + SQLite, сессии в подписанной httpOnly cookie (jose), пароли через bcrypt, `@anthropic-ai/sdk` для оценки.
