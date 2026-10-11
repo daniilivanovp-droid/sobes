@@ -9,6 +9,7 @@ import { db } from "./db";
 import { requireUser } from "./auth";
 import { SESSION_COOKIE, sessionCookieOptions, signSession } from "./session";
 import { parseQuestionBlocks } from "./parse";
+import { markPracticed } from "./practice";
 
 export type FormState = { error?: string; message?: string };
 
@@ -114,4 +115,10 @@ export async function deleteQuestion(form: FormData) {
   const user = await requireUser();
   await db.question.deleteMany({ where: { id: String(form.get("id")), userId: user.id } });
   revalidatePath("/questions");
+}
+
+// Showing the reference counts as practice, so the question moves to the back of the queue.
+export async function markReferenceShown(questionId: string) {
+  const user = await requireUser();
+  await markPracticed(user.id, questionId);
 }

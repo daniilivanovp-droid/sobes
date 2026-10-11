@@ -24,6 +24,7 @@ model Question {
   topic           String?
   text            String
   referenceAnswer String
+  lastPracticedAt DateTime?
   createdAt       DateTime  @default(now())
   attempts        Attempt[]
 }

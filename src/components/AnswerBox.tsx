@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { scoreColor } from "@/lib/format";
+import { markReferenceShown } from "@/lib/actions";
 
 type Result = {
   score: number;
@@ -116,6 +117,7 @@ export default function AnswerBox({ questionId, reference, aiEnabled }: Props) {
   function revealReference() {
     recRef.current?.stop();
     setShowReference(true);
+    markReferenceShown(questionId).catch(() => {});
   }
 
   function retry() {

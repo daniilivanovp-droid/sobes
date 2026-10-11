@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { gradeAnswer } from "@/lib/grader";
+import { markPracticed } from "@/lib/practice";
 
 const body = z.object({
   questionId: z.string(),
@@ -41,6 +42,7 @@ export async function POST(req: Request) {
         feedback: JSON.stringify(feedback),
       },
     });
+    await markPracticed(user.id, question.id);
     return NextResponse.json({ attemptId: attempt.id, ...grade, reference: question.referenceAnswer });
   } catch (err) {
     console.error("grading failed", err);

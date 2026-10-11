@@ -1,23 +1,20 @@
 import { db } from "./db";
 
-// Next question to practice: unanswered ones first, then the one with the weakest/oldest last attempt.
+// Next question to practice: round-robin over the whole deck, so every question comes up once per pass.
+// Never practiced first, then the one practiced longest ago.
 export async function pickNextQuestion(userId: string, excludeId?: string) {
   const questions = await db.question.findMany({
     where: { userId, ...(excludeId ? { id: { not: excludeId } } : {}) },
-    select: { id: true, attempts: { orderBy: { createdAt: "desc" }, take: 1, select: { score: true, createdAt: true } } },
+    select: { id: true, lastPracticedAt: true },
   });
   if (!questions.length) return null;
 
-  const unanswered = questions.filter((q) => !q.attempts.length);
-  if (unanswered.length) return unanswered[Math.floor(Math.random() * unanswered.length)].id;
+  const fresh = questions.filter((q) => !q.lastPracticedAt);
+  if (fresh.length) return fresh[Math.floor(Math.random() * fresh.length)].id;
 
-  // Lower score and older attempt -> higher priority; a little randomness to avoid loops.
-  const ranked = questions
-    .map((q) => {
-      const a = q.attempts[0];
-      const days = (Date.now() - a.createdAt.getTime()) / 86_400_000;
-      return { id: q.id, priority: (10 - a.score) + Math.min(days, 7) + Math.random() * 2 };
-    })
-    .sort((x, y) => y.priority - x.priority);
-  return ranked[0].id;
+  return questions.sort((a, b) => a.lastPracticedAt!.getTime() - b.lastPracticedAt!.getTime())[0].id;
+}
+
+export async function markPracticed(userId: string, questionId: string) {
+  await db.question.updateMany({ where: { id: questionId, userId }, data: { lastPracticedAt: new Date() } });
 }
