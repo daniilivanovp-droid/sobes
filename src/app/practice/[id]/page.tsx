@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { scoreColor } from "@/lib/format";
 import AnswerBox from "@/components/AnswerBox";
 import { aiBackend } from "@/lib/llm";
+import { nextQuestion } from "@/lib/actions";
 
 export default async function PracticeQuestionPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
@@ -20,7 +21,9 @@ export default async function PracticeQuestionPage({ params }: { params: Promise
     <div className="mx-auto max-w-3xl px-4 py-10">
       <div className="flex items-center justify-between">
         <Link href="/questions" className="text-sm text-slate-500 hover:underline">← Мои вопросы</Link>
-        <Link href={`/practice?after=${question.id}`} className="text-sm text-indigo-600 hover:underline">Пропустить →</Link>
+        <form action={nextQuestion.bind(null, question.id)}>
+          <button className="text-sm text-indigo-600 hover:underline">Пропустить →</button>
+        </form>
       </div>
 
       <div className="card mt-4">

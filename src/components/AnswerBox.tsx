@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { scoreColor } from "@/lib/format";
-import { markReferenceShown } from "@/lib/actions";
+import { markReferenceShown, nextQuestion } from "@/lib/actions";
 
 type Result = {
   score: number;
@@ -155,7 +154,9 @@ export default function AnswerBox({ questionId, reference, aiEnabled }: Props) {
           </details>
         </div>
         <div className="flex gap-3">
-          <Link href={`/practice?after=${questionId}`} className="btn-primary">Следующий вопрос</Link>
+          <form action={nextQuestion.bind(null, questionId)}>
+            <button className="btn-primary">Следующий вопрос</button>
+          </form>
           <button onClick={retry} className="btn-secondary">Ответить ещё раз</button>
         </div>
       </div>
@@ -182,7 +183,9 @@ export default function AnswerBox({ questionId, reference, aiEnabled }: Props) {
               {loading ? "Проверяю…" : aiEnabled ? "Проверить ИИ" : "Проверить (без ИИ)"}
             </button>
           )}
-          <Link href={`/practice?after=${questionId}`} className={answer.trim() ? "btn-secondary" : "btn-primary"}>Следующий вопрос</Link>
+          <form action={nextQuestion.bind(null, questionId)}>
+            <button className={answer.trim() ? "btn-secondary" : "btn-primary"}>Следующий вопрос</button>
+          </form>
           <button onClick={retry} className="btn-secondary">Ответить ещё раз</button>
         </div>
         {loading && aiEnabled && <p className="text-sm text-slate-500">ИИ проверяет ответ, обычно это занимает до 30 секунд.</p>}

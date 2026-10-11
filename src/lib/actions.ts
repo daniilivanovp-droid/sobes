@@ -9,7 +9,7 @@ import { db } from "./db";
 import { requireUser } from "./auth";
 import { SESSION_COOKIE, sessionCookieOptions, signSession } from "./session";
 import { parseQuestionBlocks } from "./parse";
-import { markPracticed } from "./practice";
+import { markPracticed, pickNextQuestion } from "./practice";
 
 export type FormState = { error?: string; message?: string };
 
@@ -121,4 +121,12 @@ export async function deleteQuestion(form: FormData) {
 export async function markReferenceShown(questionId: string) {
   const user = await requireUser();
   await markPracticed(user.id, questionId);
+}
+
+// Leaving a question (next or skip) moves it to the back of the queue, so the deck rotates fully.
+export async function nextQuestion(currentId: string) {
+  const user = await requireUser();
+  await markPracticed(user.id, currentId);
+  const next = (await pickNextQuestion(user.id, currentId)) ?? currentId;
+  redirect(`/practice/${next}`);
 }
