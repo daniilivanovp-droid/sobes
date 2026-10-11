@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { aiBackend, chatJson } from "./llm";
 
 export type Grade = {
   score: number; // 0..10
@@ -46,80 +46,20 @@ function userPrompt(input: GradeInput) {
   return `<question>\n${input.question}\n</question>\n\n<reference_answer>\n${input.reference}\n</reference_answer>\n\n<candidate_answer>\n${input.answer}\n</candidate_answer>`;
 }
 
-// GRADER selects the backend: "claude", "ollama" or "heuristic".
-// Without it: Claude if ANTHROPIC_API_KEY is set, otherwise the heuristic.
-export function graderBackend() {
-  const explicit = process.env.GRADER?.toLowerCase();
-  if (explicit === "claude" || explicit === "ollama" || explicit === "heuristic") return explicit;
-  return process.env.ANTHROPIC_API_KEY ? "claude" : "heuristic";
-}
-
 export async function gradeAnswer(input: GradeInput): Promise<Grade> {
-  const backend = graderBackend();
+  const backend = await aiBackend();
   if (backend === "heuristic") return heuristicGrade(input);
-  const parsed = backend === "ollama" ? await gradeWithOllama(input) : await gradeWithClaude(input);
-  const score = clamp(parsed.score);
-  return { ...parsed, score, verdict: verdictFor(score), grader: "llm" };
-}
-
-async function gradeWithClaude(input: GradeInput): Promise<LlmGrade> {
-  const client = new Anthropic();
-  const response = await client.messages.create({
-    model: process.env.ANTHROPIC_MODEL || "claude-opus-5-5",
-    max_tokens: 4000,
-    output_config: { effort: "medium", format: { type: "json_schema", schema: GRADE_SCHEMA } },
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userPrompt(input) }],
-  });
-
-  if (response.stop_reason === "refusal") {
-    throw new Error("Модель отказалась оценивать этот ответ");
-  }
-  const text = response.content.find((b) => b.type === "text");
-  if (!text || text.type !== "text") throw new Error("Пустой ответ модели");
-  return JSON.parse(text.text) as LlmGrade;
-}
-
-// Local open-source model served by Ollama (https://ollama.com), e.g. qwen3:8b.
-async function gradeWithOllama(input: GradeInput): Promise<LlmGrade> {
-  const baseUrl = process.env.OLLAMA_URL || "http://localhost:11434";
-  const model = process.env.OLLAMA_MODEL || "qwen3:8b";
-  let res: Response;
-  try {
-    res = await fetch(`${baseUrl}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        stream: false,
-        think: false,
-        format: GRADE_SCHEMA,
-        options: { temperature: 0, num_ctx: 8192 },
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userPrompt(input) },
-        ],
-      }),
-    });
-  } catch {
-    throw new Error(`Ollama недоступна по адресу ${baseUrl}. Запустите приложение Ollama.`);
-  }
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Ollama вернула ошибку ${res.status}: ${detail.slice(0, 200)}`);
-  }
-  const data = (await res.json()) as { message?: { content?: string } };
-  const content = data.message?.content ?? "";
-  // Some models still wrap JSON in text; take the outermost object.
-  const json = content.slice(content.indexOf("{"), content.lastIndexOf("}") + 1);
-  const parsed = JSON.parse(json) as Partial<LlmGrade>;
+  const parsed = await chatJson<Partial<LlmGrade>>(backend, SYSTEM_PROMPT, userPrompt(input), GRADE_SCHEMA);
+  const score = clamp(Number(parsed.score ?? 0));
   return {
     strengths: parsed.strengths ?? [],
     missing: parsed.missing ?? [],
     mistakes: parsed.mistakes ?? [],
     summary: parsed.summary ?? "",
-    score: Number(parsed.score ?? 0),
     followUp: parsed.followUp ?? "",
+    score,
+    verdict: verdictFor(score),
+    grader: "llm",
   };
 }
 

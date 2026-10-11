@@ -35,7 +35,9 @@ function getRecognitionCtor(): (new () => Recognition) | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-export default function AnswerBox({ questionId }: { questionId: string }) {
+type Props = { questionId: string; reference: string; aiEnabled: boolean };
+
+export default function AnswerBox({ questionId, reference, aiEnabled }: Props) {
   const router = useRouter();
   const [answer, setAnswer] = useState("");
   const [interim, setInterim] = useState("");
@@ -45,6 +47,7 @@ export default function AnswerBox({ questionId }: { questionId: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<Result | null>(null);
+  const [showReference, setShowReference] = useState(false);
   const recRef = useRef<Recognition | null>(null);
 
   useEffect(() => {
@@ -110,8 +113,14 @@ export default function AnswerBox({ questionId }: { questionId: string }) {
     }
   }
 
+  function revealReference() {
+    recRef.current?.stop();
+    setShowReference(true);
+  }
+
   function retry() {
     setResult(null);
+    setShowReference(false);
     setAnswer("");
     setUsedVoice(false);
   }
@@ -151,6 +160,35 @@ export default function AnswerBox({ questionId }: { questionId: string }) {
     );
   }
 
+  if (showReference) {
+    return (
+      <div className="mt-6 space-y-4">
+        <div className="card">
+          {answer.trim() && (
+            <>
+              <p className="text-sm font-medium text-slate-500">Ваш ответ</p>
+              <p className="mt-1 whitespace-pre-wrap text-slate-700">{answer}</p>
+              <hr className="my-4 border-slate-200" />
+            </>
+          )}
+          <p className="text-sm font-medium text-slate-500">Эталонный ответ</p>
+          <p className="mt-1 whitespace-pre-wrap">{reference}</p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          {answer.trim() && (
+            <button onClick={submit} disabled={loading} className="btn-primary">
+              {loading ? "Проверяю…" : aiEnabled ? "Проверить ИИ" : "Проверить (без ИИ)"}
+            </button>
+          )}
+          <Link href={`/practice?after=${questionId}`} className={answer.trim() ? "btn-secondary" : "btn-primary"}>Следующий вопрос</Link>
+          <button onClick={retry} className="btn-secondary">Ответить ещё раз</button>
+        </div>
+        {loading && aiEnabled && <p className="text-sm text-slate-500">ИИ проверяет ответ, обычно это занимает до 30 секунд.</p>}
+        {error && <p className="text-sm text-red-600">{error}</p>}
+      </div>
+    );
+  }
+
   return (
     <div className="mt-6">
       <textarea
@@ -163,7 +201,10 @@ export default function AnswerBox({ questionId }: { questionId: string }) {
       />
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <button onClick={submit} disabled={loading || listening || !answer.trim()} className="btn-primary">
-          {loading ? "Оцениваю…" : "Получить оценку"}
+          {loading ? "Проверяю…" : aiEnabled ? "Проверить ИИ" : "Проверить (без ИИ)"}
+        </button>
+        <button onClick={revealReference} disabled={loading} className="btn-secondary">
+          Показать эталон
         </button>
         {voiceSupported ? (
           <button onClick={toggleVoice} disabled={loading} className={listening ? "btn-secondary border-red-300 text-red-600" : "btn-secondary"}>
@@ -174,6 +215,7 @@ export default function AnswerBox({ questionId }: { questionId: string }) {
         )}
         {listening && <span className="animate-pulse text-sm text-red-600">Идёт запись…</span>}
       </div>
+      {loading && aiEnabled && <p className="mt-3 text-sm text-slate-500">ИИ проверяет ответ, обычно это занимает до 30 секунд.</p>}
       {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
     </div>
   );

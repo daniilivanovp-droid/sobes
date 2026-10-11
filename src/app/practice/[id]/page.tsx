@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { scoreColor } from "@/lib/format";
 import AnswerBox from "@/components/AnswerBox";
+import { aiBackend } from "@/lib/llm";
 
 export default async function PracticeQuestionPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
@@ -13,6 +14,7 @@ export default async function PracticeQuestionPage({ params }: { params: Promise
     include: { attempts: { orderBy: { createdAt: "desc" }, take: 10 } },
   });
   if (!question) notFound();
+  const aiEnabled = (await aiBackend()) !== "heuristic";
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
@@ -26,7 +28,7 @@ export default async function PracticeQuestionPage({ params }: { params: Promise
         <h1 className="text-xl font-semibold">{question.text}</h1>
       </div>
 
-      <AnswerBox questionId={question.id} />
+      <AnswerBox questionId={question.id} reference={question.referenceAnswer} aiEnabled={aiEnabled} />
 
       {question.attempts.length > 0 && (
         <section className="mt-10">

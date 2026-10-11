@@ -1,7 +1,8 @@
 // Measures how close the grader's scores are to hand-labelled ones.
 // Usage: npm run eval:grader   (backend is picked from .env the same way as in the app: GRADER, OLLAMA_MODEL, ANTHROPIC_API_KEY)
 import { readFileSync, writeFileSync } from "node:fs";
-import { gradeAnswer, graderBackend } from "../src/lib/grader.ts";
+import { gradeAnswer } from "../src/lib/grader.ts";
+import { aiBackend, backendLabel } from "../src/lib/llm.ts";
 
 // Settings from .env are optional here; variables from the shell take precedence.
 try {
@@ -12,8 +13,7 @@ type Case = { kind: string; expected: number; text: string };
 type Q = { id: string; question: string; reference: string; answers: Case[] };
 
 const data = JSON.parse(readFileSync(new URL("./grader-cases.json", import.meta.url), "utf8")) as { questions: Q[] };
-const backend = graderBackend();
-const label = backend === "ollama" ? `ollama:${process.env.OLLAMA_MODEL || "qwen3:8b"}` : backend === "claude" ? `claude:${process.env.ANTHROPIC_MODEL || "claude-opus-5-5"}` : "heuristic";
+const label = backendLabel(await aiBackend());
 console.log(`Грейдер: ${label}\n`);
 
 const rows: { q: string; kind: string; expected: number; got: number | null; ms: number; error?: string }[] = [];
