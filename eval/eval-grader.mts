@@ -3,6 +3,11 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { gradeAnswer, graderBackend } from "../src/lib/grader.ts";
 
+// Settings from .env are optional here; variables from the shell take precedence.
+try {
+  process.loadEnvFile(".env");
+} catch {}
+
 type Case = { kind: string; expected: number; text: string };
 type Q = { id: string; question: string; reference: string; answers: Case[] };
 

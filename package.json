@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "eval:grader": "tsx --env-file=.env eval/eval-grader.mts"
+    "eval:grader": "tsx eval/eval-grader.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
