@@ -17,11 +17,13 @@
 ### 1. Подготовка (один раз)
 
 1. Установите Node.js 20 или новее: https://nodejs.org (кнопка LTS).
-2. Распакуйте архив с проектом, например в `~/Desktop/interview-prep`.
-3. Откройте Терминал и перейдите в папку проекта:
+2. Скачайте проект и перейдите в его папку:
    ```bash
-   cd ~/Desktop/interview-prep
+   cd ~/Desktop
+   git clone https://github.com/daniilivanovp-droid/sobes.git
+   cd sobes
    ```
+3. (Если `git` не установлен, macOS сама предложит поставить инструменты разработчика, согласитесь.)
 4. Установите зависимости:
    ```bash
    npm install
@@ -68,12 +70,12 @@ npm run dev
 
 ### Обновление до новой версии
 
-Остановите сайт, распакуйте новый архив поверх папки (файл `.env` и база `prisma/dev.db` сохранятся), затем:
+Остановите сайт (Ctrl+C) и выполните в папке проекта:
 ```bash
-npm install
-npx prisma migrate deploy
+npm run update
 npm run dev
 ```
+`npm run update` скачивает свежую версию из GitHub, ставит новые зависимости и обновляет базу. Файл `.env` и база `prisma/dev.db` не затрагиваются.
 
 ## Формат загрузки списком
 
