@@ -34,7 +34,7 @@ export default function ImportForm() {
         Вставьте текст или загрузите .txt/.md файл. Вопросы разделяются строкой <code className="rounded bg-slate-100 px-1">---</code>;
         в каждом блоке первая строка это вопрос, остальное эталонный ответ.
       </p>
-      <input name="topic" placeholder="Тема для всех вопросов (необязательно)" className="input" />
+      <input name="topic" list="sections-list" placeholder="Раздел для всех вопросов (необязательно)" className="input" autoComplete="off" />
       <textarea name="bulk" rows={8} value={text} onChange={(e) => setText(e.target.value)} placeholder={EXAMPLE} className="input font-mono" />
       <div className="flex flex-wrap items-center gap-3">
         <button disabled={pending || !text.trim()} className="btn-primary">{pending ? "Загружаю…" : "Загрузить"}</button>

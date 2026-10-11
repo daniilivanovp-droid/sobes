@@ -7,9 +7,10 @@ type Props = {
   action: (state: FormState, form: FormData) => Promise<FormState>;
   initial?: { topic: string | null; text: string; referenceAnswer: string };
   submitLabel: string;
+  sections?: string[];
 };
 
-export default function QuestionForm({ action, initial, submitLabel }: Props) {
+export default function QuestionForm({ action, initial, submitLabel, sections = [] }: Props) {
   const [state, formAction, pending] = useActionState(action, {});
   const formRef = useRef<HTMLFormElement>(null);
   useEffect(() => {
@@ -23,7 +24,10 @@ export default function QuestionForm({ action, initial, submitLabel }: Props) {
         const data = new FormData(e.currentTarget);
         startTransition(() => formAction(data));
       }} className="space-y-3">
-      <input name="topic" placeholder="Тема (необязательно), например: JavaScript" defaultValue={initial?.topic ?? ""} className="input" />
+      <input name="topic" list="sections-list" placeholder="Раздел (необязательно), например: JavaScript" defaultValue={initial?.topic ?? ""} className="input" autoComplete="off" />
+      <datalist id="sections-list">
+        {sections.map((s) => <option key={s} value={s} />)}
+      </datalist>
       <textarea name="text" required rows={2} placeholder="Вопрос" defaultValue={initial?.text} className="input" />
       <textarea name="referenceAnswer" required rows={5} placeholder="Эталонный ответ" defaultValue={initial?.referenceAnswer} className="input" />
       <div className="flex items-center gap-3">

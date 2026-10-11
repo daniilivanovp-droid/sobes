@@ -6,6 +6,7 @@ import { scoreColor } from "@/lib/format";
 import AnswerBox from "@/components/AnswerBox";
 import { aiBackend } from "@/lib/llm";
 import { nextQuestion } from "@/lib/actions";
+import { getPracticeSections, NO_SECTION } from "@/lib/practice";
 
 export default async function PracticeQuestionPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
@@ -16,11 +17,15 @@ export default async function PracticeQuestionPage({ params }: { params: Promise
   });
   if (!question) notFound();
   const aiEnabled = (await aiBackend()) !== "heuristic";
+  const sections = await getPracticeSections();
+  const sectionsLabel = sections.length ? sections.map((s) => (s === NO_SECTION ? "Без раздела" : s)).join(", ") : "все разделы";
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <div className="flex items-center justify-between">
-        <Link href="/questions" className="text-sm text-slate-500 hover:underline">← Мои вопросы</Link>
+        <Link href="/practice" className="text-sm text-slate-500 hover:underline" title="Выбрать разделы">
+          ← Разделы: {sectionsLabel}
+        </Link>
         <form action={nextQuestion.bind(null, question.id)}>
           <button className="text-sm text-indigo-600 hover:underline">Пропустить →</button>
         </form>

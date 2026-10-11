@@ -9,7 +9,7 @@ import { db } from "./db";
 import { requireUser } from "./auth";
 import { SESSION_COOKIE, sessionCookieOptions, signSession } from "./session";
 import { parseQuestionBlocks } from "./parse";
-import { markPracticed, pickNextQuestion } from "./practice";
+import { getPracticeSections, markPracticed, pickNextQuestion, setPracticeSections } from "./practice";
 
 export type FormState = { error?: string; message?: string };
 
@@ -127,6 +127,23 @@ export async function markReferenceShown(questionId: string) {
 export async function nextQuestion(currentId: string) {
   const user = await requireUser();
   await markPracticed(user.id, currentId);
-  const next = (await pickNextQuestion(user.id, currentId)) ?? currentId;
-  redirect(`/practice/${next}`);
+  const sections = await getPracticeSections();
+  const next = await pickNextQuestion(user.id, currentId, sections);
+  if (next) redirect(`/practice/${next}`);
+  // Nothing else in the chosen sections: stay on this question if it belongs to them, else pick sections again.
+  const stillThere = await pickNextQuestion(user.id, undefined, sections);
+  redirect(stillThere ? `/practice/${stillThere}` : "/practice");
+}
+
+// Starts practice over the sections ticked on /practice. Ticking all of them means "all questions",
+// so sections added later are included too.
+export async function startPractice(form: FormData) {
+  const user = await requireUser();
+  const chosen = form.getAll("section").map(String);
+  if (!chosen.length) redirect("/practice");
+  const total = Number(form.get("total") ?? 0);
+  const sections = chosen.length === total ? [] : chosen;
+  await setPracticeSections(sections);
+  const next = await pickNextQuestion(user.id, undefined, sections);
+  redirect(next ? `/practice/${next}` : "/practice");
 }
