@@ -13,18 +13,18 @@ export type Grade = {
 
 const VERDICTS = ["Отлично", "Хорошо", "Удовлетворительно", "Слабо", "Не засчитано"] as const;
 
+// Lists come before the score so that smaller models reason about coverage first, then score.
 const GRADE_SCHEMA = {
   type: "object",
   properties: {
-    score: { type: "integer", description: "Оценка от 0 до 10" },
-    verdict: { type: "string", enum: [...VERDICTS] },
-    summary: { type: "string", description: "2-3 предложения: общее впечатление интервьюера" },
-    strengths: { type: "array", items: { type: "string" } },
+    strengths: { type: "array", items: { type: "string" }, description: "Что в ответе верно" },
     missing: { type: "array", items: { type: "string" }, description: "Что из эталона не прозвучало" },
     mistakes: { type: "array", items: { type: "string" }, description: "Фактические ошибки и неточности" },
+    summary: { type: "string", description: "2-3 предложения: общее впечатление интервьюера" },
+    score: { type: "integer", description: "Оценка от 0 до 10" },
     followUp: { type: "string", description: "Уточняющий вопрос, который задал бы интервьюер" },
   },
-  required: ["score", "verdict", "summary", "strengths", "missing", "mistakes", "followUp"],
+  required: ["strengths", "missing", "mistakes", "summary", "score", "followUp"],
   additionalProperties: false,
 } as const;
 
@@ -33,29 +33,43 @@ const SYSTEM_PROMPT = `Ты опытный технический интервь
 Оцени ответ кандидата так, как оценил бы его на собеседовании:
 - Сравнивай по смыслу, а не по формулировкам. Другие слова или порядок изложения не снижают оценку.
 - Главное: покрыты ли ключевые идеи эталона и нет ли фактических ошибок. Верные дополнения сверх эталона засчитываются в плюс.
+- Фактическая ошибка в ключевом утверждении снижает оценку сильнее, чем упущенная деталь. Ответ не по теме или «не знаю» получает 0-1.
 - Ответ, распознанный из речи, может содержать опечатки и ошибки распознавания; не штрафуй за них.
-- Шкала: 9-10 отлично, 7-8 хорошо, 5-6 удовлетворительно, 3-4 слабо, 0-2 не засчитано.
-- Пиши по-русски, коротко и по делу, обращаясь к кандидату на «вы». Пункты в списках короткие. Если пунктов нет, оставь список пустым.`;
+- Шкала: 9-10 отлично (все ключевые идеи, без ошибок), 7-8 хорошо (суть верна, упущены детали), 5-6 удовлетворительно (половина ключевых идей), 3-4 слабо (отдельные верные мысли), 0-2 не засчитано.
+- Пиши по-русски, коротко и по делу, обращаясь к кандидату на «вы». Пункты в списках короткие. Если пунктов нет, оставь список пустым.
+- Верни только JSON по заданной схеме.`;
 
-export async function gradeAnswer(input: {
-  question: string;
-  reference: string;
-  answer: string;
-}): Promise<Grade> {
-  if (!process.env.ANTHROPIC_API_KEY) return heuristicGrade(input);
+type GradeInput = { question: string; reference: string; answer: string };
+type LlmGrade = Omit<Grade, "grader" | "verdict">;
 
+function userPrompt(input: GradeInput) {
+  return `<question>\n${input.question}\n</question>\n\n<reference_answer>\n${input.reference}\n</reference_answer>\n\n<candidate_answer>\n${input.answer}\n</candidate_answer>`;
+}
+
+// GRADER selects the backend: "claude", "ollama" or "heuristic".
+// Without it: Claude if ANTHROPIC_API_KEY is set, otherwise the heuristic.
+export function graderBackend() {
+  const explicit = process.env.GRADER?.toLowerCase();
+  if (explicit === "claude" || explicit === "ollama" || explicit === "heuristic") return explicit;
+  return process.env.ANTHROPIC_API_KEY ? "claude" : "heuristic";
+}
+
+export async function gradeAnswer(input: GradeInput): Promise<Grade> {
+  const backend = graderBackend();
+  if (backend === "heuristic") return heuristicGrade(input);
+  const parsed = backend === "ollama" ? await gradeWithOllama(input) : await gradeWithClaude(input);
+  const score = clamp(parsed.score);
+  return { ...parsed, score, verdict: verdictFor(score), grader: "llm" };
+}
+
+async function gradeWithClaude(input: GradeInput): Promise<LlmGrade> {
   const client = new Anthropic();
   const response = await client.messages.create({
     model: process.env.ANTHROPIC_MODEL || "claude-opus-5-5",
     max_tokens: 4000,
     output_config: { effort: "medium", format: { type: "json_schema", schema: GRADE_SCHEMA } },
     system: SYSTEM_PROMPT,
-    messages: [
-      {
-        role: "user",
-        content: `<question>\n${input.question}\n</question>\n\n<reference_answer>\n${input.reference}\n</reference_answer>\n\n<candidate_answer>\n${input.answer}\n</candidate_answer>`,
-      },
-    ],
+    messages: [{ role: "user", content: userPrompt(input) }],
   });
 
   if (response.stop_reason === "refusal") {
@@ -63,8 +77,54 @@ export async function gradeAnswer(input: {
   }
   const text = response.content.find((b) => b.type === "text");
   if (!text || text.type !== "text") throw new Error("Пустой ответ модели");
-  const parsed = JSON.parse(text.text) as Omit<Grade, "grader">;
-  return { ...parsed, score: clamp(parsed.score), grader: "llm" };
+  return JSON.parse(text.text) as LlmGrade;
+}
+
+// Local open-source model served by Ollama (https://ollama.com), e.g. qwen3:8b.
+async function gradeWithOllama(input: GradeInput): Promise<LlmGrade> {
+  const baseUrl = process.env.OLLAMA_URL || "http://localhost:11434";
+  const model = process.env.OLLAMA_MODEL || "qwen3:8b";
+  let res: Response;
+  try {
+    res = await fetch(`${baseUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        stream: false,
+        think: false,
+        format: GRADE_SCHEMA,
+        options: { temperature: 0, num_ctx: 8192 },
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userPrompt(input) },
+        ],
+      }),
+    });
+  } catch {
+    throw new Error(`Ollama недоступна по адресу ${baseUrl}. Запустите приложение Ollama.`);
+  }
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Ollama вернула ошибку ${res.status}: ${detail.slice(0, 200)}`);
+  }
+  const data = (await res.json()) as { message?: { content?: string } };
+  const content = data.message?.content ?? "";
+  // Some models still wrap JSON in text; take the outermost object.
+  const json = content.slice(content.indexOf("{"), content.lastIndexOf("}") + 1);
+  const parsed = JSON.parse(json) as Partial<LlmGrade>;
+  return {
+    strengths: parsed.strengths ?? [],
+    missing: parsed.missing ?? [],
+    mistakes: parsed.mistakes ?? [],
+    summary: parsed.summary ?? "",
+    score: Number(parsed.score ?? 0),
+    followUp: parsed.followUp ?? "",
+  };
+}
+
+export function verdictFor(score: number) {
+  return score >= 9 ? VERDICTS[0] : score >= 7 ? VERDICTS[1] : score >= 5 ? VERDICTS[2] : score >= 3 ? VERDICTS[3] : VERDICTS[4];
 }
 
 function clamp(n: number) {
@@ -104,8 +164,8 @@ export function heuristicGrade(input: { reference: string; answer: string }): Gr
 
   return {
     score,
-    verdict: score >= 9 ? VERDICTS[0] : score >= 7 ? VERDICTS[1] : score >= 5 ? VERDICTS[2] : score >= 3 ? VERDICTS[3] : VERDICTS[4],
-    summary: `Упрощённая оценка без ИИ: в ответе прозвучало ${covered.length} из ${refStems.length} ключевых понятий эталона. Подключите ключ Claude API, чтобы получить разбор как от интервьюера.`,
+    verdict: verdictFor(score),
+    summary: `Упрощённая оценка без ИИ: в ответе прозвучало ${covered.length} из ${refStems.length} ключевых понятий эталона. Подключите Claude или локальную модель через Ollama, чтобы получить разбор как от интервьюера.`,
     strengths: strengths.slice(0, 5),
     missing: missing.slice(0, 5),
     mistakes: [],
