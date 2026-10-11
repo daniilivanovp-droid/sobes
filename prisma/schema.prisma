@@ -25,8 +25,11 @@ model Question {
   text            String
   referenceAnswer String
   lastPracticedAt DateTime?
+  notionId        String?
   createdAt       DateTime  @default(now())
   attempts        Attempt[]
+
+  @@unique([userId, notionId])
 }
 
 model Attempt {

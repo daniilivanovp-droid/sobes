@@ -9,6 +9,7 @@ import { db } from "./db";
 import { requireUser } from "./auth";
 import { SESSION_COOKIE, sessionCookieOptions, signSession } from "./session";
 import { parseQuestionBlocks } from "./parse";
+import { fetchNotionBank, notionConfigured } from "./notion";
 import { getPracticeSections, markPracticed, pickNextQuestion, setPracticeSections } from "./practice";
 
 export type FormState = { error?: string; message?: string };
@@ -88,10 +89,45 @@ export async function importQuestions(_: FormState, form: FormData): Promise<For
   const items = parseQuestionBlocks(String(form.get("bulk") ?? ""));
   if (!items.length) return { error: "Не нашёл ни одного вопроса. Проверьте формат." };
   await db.question.createMany({
-    data: items.map((q) => ({ ...q, topic, userId: user.id })),
+    data: items.map(({ section, ...q }) => ({ ...q, topic: section || topic, userId: user.id })),
   });
   revalidatePath("/questions");
   return { message: `Загружено вопросов: ${items.length}` };
+}
+
+// Pulls the Notion question bank: new questions are added, changed ones updated (matched by Notion block id).
+// Questions deleted in Notion stay in the service so their attempt history is kept.
+export async function syncNotion(_: FormState, _form: FormData): Promise<FormState> {
+  const user = await requireUser();
+  if (!notionConfigured()) return { error: "Notion не подключён: добавьте NOTION_TOKEN в .env и перезапустите сайт." };
+  let bank;
+  try {
+    bank = await fetchNotionBank();
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Notion: не удалось прочитать страницу" };
+  }
+  if (!bank.questions.length) return { error: "На странице Notion не нашёл вопросов с эталонными ответами." };
+
+  const existing = new Map(
+    (await db.question.findMany({ where: { userId: user.id, notionId: { not: null } }, select: { id: true, notionId: true, text: true, referenceAnswer: true, topic: true } }))
+      .map((q) => [q.notionId!, q]),
+  );
+  let added = 0, updated = 0;
+  for (const q of bank.questions) {
+    const data = { text: q.text, referenceAnswer: q.referenceAnswer, topic: q.section };
+    const old = existing.get(q.notionId);
+    if (!old) {
+      await db.question.create({ data: { ...data, notionId: q.notionId, userId: user.id } });
+      added++;
+    } else if (old.text !== data.text || old.referenceAnswer !== data.referenceAnswer || old.topic !== data.topic) {
+      await db.question.update({ where: { id: old.id }, data });
+      updated++;
+    }
+  }
+  revalidatePath("/questions");
+  const parts = [`Добавлено: ${added}`, `обновлено: ${updated}`, `без изменений: ${bank.questions.length - added - updated}`];
+  const skipped = bank.skipped.length ? ` Пропущены без эталона (${bank.skipped.length}): ${bank.skipped.map((t) => `«${t}»`).join(", ")}.` : "";
+  return { message: `${parts.join(", ")}.${skipped}` };
 }
 
 export async function updateQuestion(id: string, _: FormState, form: FormData): Promise<FormState> {

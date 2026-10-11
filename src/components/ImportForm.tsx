@@ -32,7 +32,7 @@ export default function ImportForm() {
       }} className="space-y-3">
       <p className="text-sm text-slate-600">
         Вставьте текст или загрузите .txt/.md файл. Вопросы разделяются строкой <code className="rounded bg-slate-100 px-1">---</code>;
-        в каждом блоке первая строка это вопрос, остальное эталонный ответ.
+        в каждом блоке первая строка это вопрос, остальное эталонный ответ. Строка <code className="rounded bg-slate-100 px-1"># Название</code> в начале блока задаёт раздел для него и следующих вопросов.
       </p>
       <input name="topic" list="sections-list" placeholder="Раздел для всех вопросов (необязательно)" className="input" autoComplete="off" />
       <textarea name="bulk" rows={8} value={text} onChange={(e) => setText(e.target.value)} placeholder={EXAMPLE} className="input font-mono" />

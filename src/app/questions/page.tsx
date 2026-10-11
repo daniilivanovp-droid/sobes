@@ -4,6 +4,8 @@ import { requireUser } from "@/lib/auth";
 import { createQuestion, deleteQuestion, startPractice } from "@/lib/actions";
 import QuestionForm from "@/components/QuestionForm";
 import ImportForm from "@/components/ImportForm";
+import NotionSync from "@/components/NotionSync";
+import { notionConfigured } from "@/lib/notion";
 import { scoreColor } from "@/lib/format";
 import { listSections, NO_SECTION, sectionFilter } from "@/lib/practice";
 
@@ -49,6 +51,13 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Pr
           <ImportForm />
         </section>
       </div>
+
+      {notionConfigured() && (
+        <section className="card mt-6">
+          <h2 className="mb-3 font-semibold">Notion</h2>
+          <NotionSync />
+        </section>
+      )}
 
       {sections.length > 1 && (
         <nav className="mt-8 flex flex-wrap gap-2 text-sm">
